@@ -1,5 +1,5 @@
 import itertools
-from typing import List, Iterable, Coroutine, Optional, Awaitable
+from typing import List, Optional, Awaitable
 
 import aiodns
 
@@ -15,7 +15,7 @@ async def async_check(domain: str) -> Optional[str]:
     return domain
 
 
-def generate_check_set(host: str, deep: int = 2) -> Iterable[Awaitable[Optional[str]]]:
+def generate_check_set(host: str, deep: int = 2) -> List[Awaitable[Optional[str]]]:
     return [
         async_check(f"{'.'.join(r)}.{host}")
         for r in itertools.product(subdomains, repeat=deep)
