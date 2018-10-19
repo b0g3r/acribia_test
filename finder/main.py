@@ -5,7 +5,7 @@ from aiohttp import web
 from aiohttp.web_request import Request
 
 from finder.app import app
-from finder.resolver import generate_check_set
+from finder.resolver import generate_check_chunks, count_subdomains
 
 
 async def websocket_handler(request):
@@ -17,15 +17,15 @@ async def websocket_handler(request):
             if msg.data == 'close':
                 await ws.close()
             else:
-                async_checks = generate_check_set(msg.data, 1)
-                full_count = len(async_checks)
-                await ws.send_json({'action': 'check_start', 'data': {'count': full_count}})
-                for i, check in enumerate(as_completed(async_checks)):
-                    host = await check
-                    if host:
-                        await ws.send_json({'action': 'new_host', 'data': {'host': host}})
-                    if i % 100 == 0:
-                        await ws.send_json({'action': 'progress', 'data': {'num': i/full_count}})
+                data = msg.json()
+                check_chunks = generate_check_chunks(data['host'], data.get('deep', 1))
+                await ws.send_json({'action': 'check_start', 'data': {'count': count_subdomains(data.get('deep', 1))}})
+                for chunk_num, chunk in enumerate(check_chunks, 1):
+                    for check_num, check in enumerate(as_completed(chunk)):
+                        host = await check
+                        if host:
+                            await ws.send_json({'action': 'new_host', 'data': {'host': host}})
+                    await ws.send_json({'action': 'progress', 'data': {'count': chunk_num*1000}})
                 await ws.send_json({'action': 'check_over', 'data': None})
                 await ws.close()
         elif msg.type == aiohttp.WSMsgType.ERROR:
