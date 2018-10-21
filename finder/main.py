@@ -21,16 +21,17 @@ async def websocket_handler(request):
                 check_chunks = generate_check_chunks(data['host'], data.get('deep', 1))
                 await ws.send_json({'action': 'check_start', 'data': {'count': count_subdomains(data.get('deep', 1))}})
                 for chunk_num, chunk in enumerate(check_chunks, 1):
-                    for check_num, check in enumerate(as_completed(chunk)):
+                    for check_num, check in enumerate(as_completed(chunk), 1):
                         host = await check
                         if host:
-                            await ws.send_json({'action': 'new_host', 'data': {'host': host}})
+                            await ws.send_json({'action': 'new_host', 'data': {
+                                'host': host,
+                                'count': check_num + (chunk_num-1)*1000
+                            }})
                     await ws.send_json({'action': 'progress', 'data': {'count': chunk_num*1000}})
                 await ws.send_json({'action': 'check_over', 'data': None})
-                await ws.close()
         elif msg.type == aiohttp.WSMsgType.ERROR:
-            print('ws connection closed with exception %s' %
-                  ws.exception())
+            print('ws connection closed with exception %s' % ws.exception())
 
     print('websocket connection closed')
 
